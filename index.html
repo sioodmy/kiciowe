@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kiciowe</title>
+  <meta name="description"
+    content="kurde benc tutaj można rysować kiciowe i inne stworki i potem się nimi bawić na podłodze">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐱</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <meta name="twitter:image" property="og:image" content="./kiciowe.jpeg" />
+
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <header id="site-header">
+    <h1>Kiciowe</h1>
+    <h2>Ale czasem też i nie jabky co!</h2>
+  </header>
+
+  <main>
+    <section class="editor-section" id="editor-section">
+      <div class="editor-layout">
+
+        <div class="panel tools-panel" id="tools-panel">
+          <h3>Piórnik</h3>
+          <div class="tool-buttons">
+            <button id="pen-tool" class="tool-btn active" title="Pen (P)">
+              <span class="tool-icon">✏️</span><span class="tool-label">Kredka</span>
+            </button>
+            <button id="eraser-tool" class="tool-btn" title="Eraser (E)">
+              <span class="tool-icon">🧹</span><span class="tool-label">Lufka</span>
+            </button>
+            <button id="fill-tool" class="tool-btn" title="Fill (F)">
+              <span class="tool-icon">🪣</span><span class="tool-label">Wiadro</span>
+            </button>
+          </div>
+
+          <h3>Kolorki</h3>
+          <div class="color-palette" id="color-palette"></div>
+          <div class="current-color-display">
+            <span>Wybrany</span>
+            <div id="current-color-preview"></div>
+          </div>
+        </div>
+
+        <div class="canvas-wrapper" id="canvas-wrapper">
+          <canvas id="editor-canvas" width="480" height="480"></canvas>
+          <div class="canvas-coords" id="canvas-coords">—</div>
+        </div>
+
+        <div class="panel right-panel" id="right-panel">
+          <h3>Wygląda tak o:</h3>
+          <div class="preview-box">
+            <canvas id="preview-canvas" width="128" height="128"></canvas>
+          </div>
+          <div class="preview-controls">
+            <button id="play-preview" title="Play/Pause preview">▶ podgląd</button>
+            <label class="speed-label">
+              FPS
+              <input type="range" id="fps-slider" min="2" max="24" value="8">
+              <span id="fps-value">8</span>
+            </label>
+          </div>
+
+          <h3>Klatki</h3>
+          <div class="frame-nav">
+            <button id="prev-frame" title="Previous frame (←)">◀</button>
+            <span id="frame-indicator">1 / 1</span>
+            <button id="next-frame" title="Next frame (→)">▶</button>
+          </div>
+          <div class="frame-strip" id="frame-strip"></div>
+          <div class="frame-actions">
+            <button id="add-frame" title="Add blank frame">＋ Nowy klatek</button>
+            <button id="copy-frame" title="Duplicate current frame">📋 Kopiuj</button>
+            <button id="delete-frame" title="Delete current frame">🗑️ Kurde</button>
+          </div>
+
+          <div class="onion-skin-toggle">
+            <label>
+              <input type="checkbox" id="onion-skin"> Przezroczyste trochę
+            </label>
+          </div>
+
+          <button id="add-to-floor" class="add-to-floor-btn" title="Send this kitty to the playground!">
+            🌿 Wyślij na plac zabaw
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="floor-section" id="floor-section">
+      <h2>Plac zabaw dla kiciowych (jakby co to mozna tez inne stworki rysować)</h2>
+      <div class="floor-container" id="floor-container">
+        <canvas id="floor-canvas"></canvas>
+      </div>
+      <div class="floor-controls">
+        <span id="cat-count">glupi - nie ma kiciowych jeszcze !!!</span>
+        <button id="clear-floor" title="Remove all kitties from the playground">Koniec zabawy :c</button>
+      </div>
+    </section>
+
+    <section class="ranking">
+      <h2> Ranking najfajnieszych </h2>
+      <ol>
+        <li>chramwaj</li>
+      </ol>
+    </section>
+  </main>
+
+
+  <script src="app.js"></script>
+</body>
+
+</html>
