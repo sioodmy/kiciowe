@@ -323,10 +323,13 @@ document.addEventListener('keydown', (e) => {
 function createFloorCat(catFrames) {
   const fw = floorCanvas.width;
   const groundY = floorCanvas.height * 0.65;
+  const baseY = groundY + Math.random() * 6;
   return {
     frames: catFrames,
     x: Math.random() * (fw - GRID * CAT_SCALE),
-    y: groundY - GRID * CAT_SCALE + Math.random() * 6,
+    baseY: baseY,
+    y: baseY - GRID * CAT_SCALE,
+    scaleMod: 1.0,
     vx: 0,
     direction: Math.random() < 0.5 ? -1 : 1,
     state: 'idle',
@@ -353,7 +356,8 @@ function updateCat(cat, dt) {
 
   if (cat.state === 'walking') {
     cat.x += cat.direction * cat.speed * dt;
-    const maxX = floorCanvas.width - GRID * CAT_SCALE;
+    const s = CAT_SCALE * (cat.scaleMod || 1.0);
+    const maxX = floorCanvas.width - GRID * s;
     if (cat.x < 10) { cat.x = 10; cat.direction = 1; }
     if (cat.x > maxX - 10) { cat.x = maxX - 10; cat.direction = -1; }
     cat.animTimer += dt;
@@ -368,7 +372,8 @@ function updateCat(cat, dt) {
 
 function renderFloorCat(ctx, cat) {
   const frame = cat.frames[cat.animFrame];
-  const s = CAT_SCALE;
+  const s = CAT_SCALE * (cat.scaleMod || 1.0);
+  if (cat.baseY) cat.y = cat.baseY - GRID * s;
 
   ctx.save();
   if (cat.direction === -1) {
@@ -388,7 +393,11 @@ function renderFloorCat(ctx, cat) {
     for (let x = 0; x < GRID; x++) {
       if (frame[y][x]) {
         ctx.fillStyle = frame[y][x];
-        ctx.fillRect(x * s, y * s, s, s);
+        const px = Math.floor(x * s);
+        const py = Math.floor(y * s);
+        const pw = Math.ceil((x + 1) * s) - px;
+        const ph = Math.ceil((y + 1) * s) - py;
+        ctx.fillRect(px, py, pw, ph);
       }
     }
   }
@@ -601,6 +610,8 @@ function saveCats() {
     localStorage.setItem('kiciowe_cats', JSON.stringify(cats.map(c => ({
       frames: c.frames,
       speed: c.speed,
+      scaleMod: c.scaleMod,
+      baseY: c.baseY
     }))));
   } catch (e) { }
 }
@@ -612,12 +623,46 @@ function loadCats() {
       data.forEach(d => {
         const cat = createFloorCat(d.frames);
         if (d.speed) cat.speed = d.speed;
+        if (d.scaleMod) cat.scaleMod = d.scaleMod;
+        if (d.baseY) cat.baseY = d.baseY;
         cats.push(cat);
       });
       updateCatCount();
     }
   } catch (e) { }
 }
+
+floorCanvas.addEventListener('click', (e) => {
+  const rect = floorCanvas.getBoundingClientRect();
+  const scaleX = floorCanvas.width / rect.width;
+  const scaleY = floorCanvas.height / rect.height;
+
+  const clickX = (e.clientX - rect.left) * scaleX;
+  const clickY = (e.clientY - rect.top) * scaleY;
+
+  for (let i = cats.length - 1; i >= 0; i--) {
+    const cat = cats[i];
+    const s = CAT_SCALE * (cat.scaleMod || 1.0);
+    const catWidth = GRID * s;
+    const catHeight = GRID * s;
+
+    cat.baseY = cat.baseY || (cat.y + GRID * CAT_SCALE);
+    const catY = cat.baseY - catHeight;
+
+    if (clickX >= cat.x && clickX <= cat.x + catWidth &&
+      clickY >= catY && clickY <= catY + catHeight) {
+
+      if ((cat.scaleMod || 1.0) < 8.0) {
+        cat.scaleMod = (cat.scaleMod || 1.0) * 1.2;
+        showToast('dostał doline noteci !!!');
+      } else {
+        showToast('jemu już może starczy co??');
+      }
+      saveCats();
+      break;
+    }
+  }
+});
 
 function init() {
   setupPalette();
