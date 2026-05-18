@@ -11,6 +11,11 @@
     href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐱</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <meta name="twitter:image" property="og:image" content="./kiciowe.jpeg" />
+  <link rel="manifest" href="./manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Kiciowe">
+  <link rel="apple-touch-icon" href="./kiciowe.jpeg">
 
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700&display=swap"
@@ -52,6 +57,7 @@
         </div>
 
         <div class="canvas-wrapper" id="canvas-wrapper">
+          <button id="fullscreen-btn" class="fullscreen-btn" title="Toggle Fullscreen">🔲 Na cały ekran</button>
           <canvas id="editor-canvas" width="480" height="480"></canvas>
           <div class="canvas-coords" id="canvas-coords">—</div>
         </div>

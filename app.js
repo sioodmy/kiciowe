@@ -38,6 +38,7 @@ const coordsDisplay = document.getElementById('canvas-coords');
 const catCountEl = document.getElementById('cat-count');
 const fpsSlider = document.getElementById('fps-slider');
 const fpsValue = document.getElementById('fps-value');
+const fullscreenBtn = document.getElementById('fullscreen-btn');
 
 function createEmptyFrame() {
   return Array.from({ length: GRID }, () => Array(GRID).fill(null));
@@ -155,6 +156,39 @@ editorCanvas.addEventListener('touchmove', (e) => {
 }, { passive: false });
 
 editorCanvas.addEventListener('touchend', () => { isDrawing = false; });
+
+fullscreenBtn.addEventListener('click', () => {
+  const editorSection = document.getElementById('editor-section');
+  if (!document.fullscreenElement) {
+    if (editorSection.requestFullscreen) {
+      editorSection.requestFullscreen();
+    } else if (editorSection.webkitRequestFullscreen) { /* Safari */
+      editorSection.webkitRequestFullscreen();
+    } else if (editorSection.msRequestFullscreen) { /* IE11 */
+      editorSection.msRequestFullscreen();
+    }
+    fullscreenBtn.textContent = '🔳 Zamknij z całego ekranu';
+    editorSection.classList.add('is-fullscreen');
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) { /* Safari */
+      document.webkitExitFullscreen();
+    } else if (document.msExitFullscreen) { /* IE11 */
+      document.msExitFullscreen();
+    }
+    fullscreenBtn.textContent = '🔲 Na cały ekran';
+    editorSection.classList.remove('is-fullscreen');
+  }
+});
+
+document.addEventListener('fullscreenchange', () => {
+  const editorSection = document.getElementById('editor-section');
+  if (!document.fullscreenElement) {
+    fullscreenBtn.textContent = '🔲 Na cały ekran';
+    editorSection.classList.remove('is-fullscreen');
+  }
+});
 
 function setupPalette() {
   const tSwatch = document.createElement('div');
@@ -598,3 +632,13 @@ function init() {
 }
 
 init();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      console.log('ServiceWorker registered:', reg.scope);
+    }).catch(err => {
+      console.log('ServiceWorker registration failed:', err);
+    });
+  });
+}
