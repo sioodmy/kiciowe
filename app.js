@@ -24,6 +24,25 @@ let cats = [];
 let floorAnimId = null;
 let lastFloorTime = 0;
 
+let energyPoints = 0;
+const CAT_COST = 20;
+
+const MERGE_ITEMS = {
+  1: { icon: '🧶', name: 'Wluczka' },
+  2: { icon: '🐁', name: 'Szczur' },
+  3: { icon: '🪶', name: 'Piurko' },
+  4: { icon: '🥣', name: 'Miska' },
+  5: { icon: '📦', name: 'Pudełko' },
+  6: { icon: '🥫', name: 'Dolina noteciów' }
+};
+const MERGE_ENERGY_REWARDS = { 2: 1, 3: 3, 4: 8, 5: 20 };
+const CAN_EXCHANGE_REWARD = 10;
+
+let mergeBoard = Array(20).fill(null);
+let genCharges = 5;
+const MAX_GEN_CHARGES = 5;
+let lastGenTime = Date.now();
+
 const editorCanvas = document.getElementById('editor-canvas');
 const editorCtx = editorCanvas.getContext('2d');
 const previewCanvas = document.getElementById('preview-canvas');
@@ -39,6 +58,30 @@ const catCountEl = document.getElementById('cat-count');
 const fpsSlider = document.getElementById('fps-slider');
 const fpsValue = document.getElementById('fps-value');
 const fullscreenBtn = document.getElementById('fullscreen-btn');
+
+const energyCountEl = document.getElementById('energy-count');
+const tabBtnDrawing = document.getElementById('tab-btn-drawing');
+const tabBtnGame = document.getElementById('tab-btn-game');
+const tabDrawing = document.getElementById('tab-drawing');
+const tabGame = document.getElementById('tab-game');
+const mergeBoardEl = document.getElementById('merge-board');
+const generatorBtn = document.getElementById('generator-btn');
+const genChargesEl = document.getElementById('gen-charges');
+const cooldownBarEl = document.getElementById('cooldown-bar');
+
+tabBtnDrawing.addEventListener('click', () => {
+  tabBtnDrawing.classList.add('active');
+  tabBtnGame.classList.remove('active');
+  tabDrawing.classList.add('active');
+  tabGame.classList.remove('active');
+});
+
+tabBtnGame.addEventListener('click', () => {
+  tabBtnGame.classList.add('active');
+  tabBtnDrawing.classList.remove('active');
+  tabGame.classList.add('active');
+  tabDrawing.classList.remove('active');
+});
 
 function createEmptyFrame() {
   return Array.from({ length: GRID }, () => Array(GRID).fill(null));
@@ -571,6 +614,12 @@ document.getElementById('add-to-floor').addEventListener('click', () => {
   const hasPixels = frames.some(f => f.some(row => row.some(c => c !== null)));
   if (!hasPixels) { showToast('narysuj coś najpierw głupi 🎨'); return; }
 
+  if (!spendEnergy(CAT_COST)) {
+    showToast(`Potrzebujesz ${CAT_COST} ⚡ żeby dodać kiciowego! Zagraj w grę.`);
+    tabBtnGame.click();
+    return;
+  }
+
   const catFrames = frames.map(f => cloneFrame(f));
   const cat = createFloorCat(catFrames);
   cats.push(cat);
@@ -664,6 +713,284 @@ floorCanvas.addEventListener('click', (e) => {
   }
 });
 
+// Energy and Merge Game Logic
+function updateEnergyDisplay() {
+  energyCountEl.textContent = energyPoints;
+}
+
+function addEnergy(amount) {
+  energyPoints += amount;
+  updateEnergyDisplay();
+  saveMergeState();
+}
+
+function spendEnergy(amount) {
+  if (energyPoints >= amount) {
+    energyPoints -= amount;
+    updateEnergyDisplay();
+    saveMergeState();
+    return true;
+  }
+  return false;
+}
+
+function renderMergeBoard() {
+  mergeBoardEl.innerHTML = '';
+  mergeBoard.forEach((itemLvl, index) => {
+    const cell = document.createElement('div');
+    cell.className = 'merge-cell';
+    cell.dataset.index = index;
+
+    if (itemLvl) {
+      const item = document.createElement('div');
+      item.className = 'merge-item';
+      item.textContent = MERGE_ITEMS[itemLvl].icon;
+      item.dataset.level = itemLvl;
+      item.dataset.index = index;
+      item.draggable = true;
+
+      item.addEventListener('dragstart', handleDragStart);
+      item.addEventListener('dragend', handleDragEnd);
+
+      // Touch support for dragging
+      item.addEventListener('touchstart', handleTouchStart, { passive: false });
+      item.addEventListener('touchmove', handleTouchMove, { passive: false });
+      item.addEventListener('touchend', handleTouchEnd);
+
+      if (itemLvl === 6) {
+        const exBtn = document.createElement('button');
+        exBtn.className = 'item-exchange-btn';
+        exBtn.innerHTML = '⚡';
+        exBtn.title = `Wymień na ${CAN_EXCHANGE_REWARD} energii!`;
+
+        // Prevent drag events from firing when clicking the button
+        exBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+        exBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+
+        exBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          mergeBoard[index] = null;
+          addEnergy(CAN_EXCHANGE_REWARD);
+          showToast(`Ale pycha! +${CAN_EXCHANGE_REWARD} ⚡`);
+          saveMergeState();
+          renderMergeBoard();
+        });
+        item.appendChild(exBtn);
+      }
+
+      cell.appendChild(item);
+    }
+
+    cell.addEventListener('dragover', handleDragOver);
+    cell.addEventListener('dragleave', handleDragLeave);
+    cell.addEventListener('drop', handleDrop);
+
+    mergeBoardEl.appendChild(cell);
+  });
+}
+
+let draggedItemIndex = null;
+let touchDraggedItem = null;
+
+function handleDragStart(e) {
+  draggedItemIndex = parseInt(e.target.dataset.index);
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => e.target.classList.add('dragging'), 0);
+}
+
+function handleDragEnd(e) {
+  e.target.classList.remove('dragging');
+  draggedItemIndex = null;
+  document.querySelectorAll('.merge-cell').forEach(c => c.classList.remove('drag-over'));
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const cell = e.target.closest('.merge-cell');
+  if (cell) cell.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+  const cell = e.target.closest('.merge-cell');
+  if (cell) cell.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  const cell = e.target.closest('.merge-cell');
+  if (!cell) return;
+  cell.classList.remove('drag-over');
+
+  processDrop(parseInt(cell.dataset.index));
+}
+
+// Touch events for mobile
+function handleTouchStart(e) {
+  if (e.target.classList.contains('merge-item')) {
+    e.preventDefault(); // Prevent scrolling
+    draggedItemIndex = parseInt(e.target.dataset.index);
+    touchDraggedItem = e.target.cloneNode(true);
+    touchDraggedItem.style.position = 'fixed';
+    touchDraggedItem.style.zIndex = '1000';
+    touchDraggedItem.style.opacity = '0.8';
+    touchDraggedItem.style.pointerEvents = 'none';
+    document.body.appendChild(touchDraggedItem);
+
+    const touch = e.touches[0];
+    touchDraggedItem.style.left = (touch.clientX - 28) + 'px';
+    touchDraggedItem.style.top = (touch.clientY - 28) + 'px';
+    e.target.classList.add('dragging');
+  }
+}
+
+function handleTouchMove(e) {
+  if (touchDraggedItem) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    touchDraggedItem.style.left = (touch.clientX - 28) + 'px';
+    touchDraggedItem.style.top = (touch.clientY - 28) + 'px';
+
+    // Highlight drop target
+    document.querySelectorAll('.merge-cell').forEach(c => c.classList.remove('drag-over'));
+    const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+    const cellBelow = elemBelow ? elemBelow.closest('.merge-cell') : null;
+    if (cellBelow) {
+      cellBelow.classList.add('drag-over');
+    }
+  }
+}
+
+function handleTouchEnd(e) {
+  if (touchDraggedItem) {
+    const touch = e.changedTouches[0];
+    const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+    const cellBelow = elemBelow ? elemBelow.closest('.merge-cell') : null;
+
+    if (cellBelow) {
+      processDrop(parseInt(cellBelow.dataset.index));
+    } else {
+      document.querySelectorAll('.merge-cell').forEach(c => c.classList.remove('drag-over'));
+      renderMergeBoard(); // Reset
+    }
+
+    document.body.removeChild(touchDraggedItem);
+    touchDraggedItem = null;
+    draggedItemIndex = null;
+  }
+}
+
+function processDrop(targetIndex) {
+  if (draggedItemIndex === null || isNaN(targetIndex)) return;
+  if (targetIndex === draggedItemIndex) {
+    renderMergeBoard();
+    return;
+  }
+
+  const sourceLvl = mergeBoard[draggedItemIndex];
+  const targetLvl = mergeBoard[targetIndex];
+
+  if (targetLvl === null) {
+    // Move
+    mergeBoard[targetIndex] = sourceLvl;
+    mergeBoard[draggedItemIndex] = null;
+  } else if (targetLvl === sourceLvl && sourceLvl < 6) {
+    // Merge
+    const newLvl = sourceLvl + 1;
+    mergeBoard[targetIndex] = newLvl;
+    mergeBoard[draggedItemIndex] = null;
+
+    // Reward energy
+    const reward = MERGE_ENERGY_REWARDS[newLvl] || 0;
+    addEnergy(reward);
+    showToast(`Ooo! +${reward} ⚡`);
+  }
+
+  saveMergeState();
+  renderMergeBoard();
+}
+
+function spawnMergeItem() {
+  if (genCharges < 1) return;
+
+  const emptyIndices = mergeBoard.map((v, i) => v === null ? i : -1).filter(i => i !== -1);
+  if (emptyIndices.length === 0) {
+    showToast('Brak miejsca na planszy! Połącz coś.');
+    return;
+  }
+
+  genCharges--;
+  const randIndex = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+  mergeBoard[randIndex] = 1; // Spawn Level 1 item
+
+  saveMergeState();
+  renderMergeBoard();
+  updateGeneratorUI();
+}
+
+generatorBtn.addEventListener('click', spawnMergeItem);
+
+function updateGeneratorUI() {
+  genChargesEl.textContent = `${Math.floor(genCharges)}/${MAX_GEN_CHARGES}`;
+  if (genCharges >= 1) {
+    generatorBtn.disabled = false;
+  } else {
+    generatorBtn.disabled = true;
+  }
+}
+
+function generatorLoop() {
+  const now = Date.now();
+  const delta = (now - lastGenTime) / 1000;
+  lastGenTime = now;
+
+  if (genCharges < MAX_GEN_CHARGES) {
+    genCharges += delta * 0.5; // 1 charge per 2 seconds
+    if (genCharges > MAX_GEN_CHARGES) genCharges = MAX_GEN_CHARGES;
+
+    const progress = (genCharges % 1) * 100;
+    cooldownBarEl.style.width = genCharges >= MAX_GEN_CHARGES ? '100%' : `${progress}%`;
+    updateGeneratorUI();
+    saveMergeState();
+  }
+  requestAnimationFrame(generatorLoop);
+}
+
+function saveMergeState() {
+  try {
+    localStorage.setItem('kiciowe_merge', JSON.stringify({
+      energyPoints,
+      mergeBoard,
+      genCharges,
+      lastGenTime
+    }));
+  } catch (e) { }
+}
+
+function loadMergeState() {
+  try {
+    const data = JSON.parse(localStorage.getItem('kiciowe_merge'));
+    if (data) {
+      energyPoints = data.energyPoints || 0;
+      mergeBoard = data.mergeBoard || Array(20).fill(null);
+
+      const now = Date.now();
+      const savedTime = data.lastGenTime || now;
+      let charges = data.genCharges !== undefined ? data.genCharges : MAX_GEN_CHARGES;
+
+      const timePassed = (now - savedTime) / 1000;
+      charges += timePassed * 0.5;
+      if (charges > MAX_GEN_CHARGES) charges = MAX_GEN_CHARGES;
+
+      genCharges = charges;
+      lastGenTime = now;
+    }
+  } catch (e) { }
+  updateEnergyDisplay();
+  renderMergeBoard();
+  updateGeneratorUI();
+}
+
 function init() {
   setupPalette();
   renderEditor();
@@ -671,8 +998,10 @@ function init() {
   renderPreview(frames[0]);
   resizeFloor();
   loadCats();
+  loadMergeState();
   lastFloorTime = 0;
   floorAnimId = requestAnimationFrame(renderFloor);
+  generatorLoop();
   window.addEventListener('resize', resizeFloor);
 }
 
